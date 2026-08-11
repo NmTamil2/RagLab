@@ -15,7 +15,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api import health
+from app.api import documents, health
 from app.core.config import settings
 
 logging.basicConfig(level=logging.INFO)
@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 app = FastAPI(
     title=settings.app_name,
     version=settings.app_version,
-    description="Educational, production-style RAG application. Step 1: foundation.",
+    description="Educational, production-style RAG application. Step 2: document upload.",
 )
 
 # --- CORS -------------------------------------------------------------------
@@ -43,6 +43,7 @@ app.add_middleware(
 # --- Routers ----------------------------------------------------------------
 # Every route lives under /api so the URL space stays tidy as features grow.
 app.include_router(health.router, prefix="/api")
+app.include_router(documents.router, prefix="/api")
 
 
 # --- Error handling ---------------------------------------------------------

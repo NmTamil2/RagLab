@@ -43,10 +43,10 @@ function HealthStatus() {
   }[state];
 
   return (
-    <section className="health-card">
+    <section className="card">
       <div className="health-header">
         <span className={`status-dot status-dot--${state}`} aria-hidden="true" />
-        <h2 className="health-title">{label}</h2>
+        <h2 className="card-title">{label}</h2>
       </div>
 
       {state === "ok" && (
@@ -64,12 +64,12 @@ function HealthStatus() {
         </dl>
       )}
 
-      {state === "error" && <p className="health-error">{error}</p>}
+      {state === "error" && <p className="message message--error">{error}</p>}
 
       <div className="health-footer">
         <button
           type="button"
-          className="health-button"
+          className="button"
           onClick={checkHealth}
           disabled={isLoading}
         >

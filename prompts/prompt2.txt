@@ -1,0 +1,167 @@
+We completed **RAGLab Step 1 — Project Foundation**.
+
+Now implement **ONLY Step 2 — Document Upload**.
+
+Do not implement PDF text extraction, chunking, embeddings, ChromaDB, Grok, retrieval, or any other future RAG functionality yet.
+
+## Goal
+
+Build a document upload feature where:
+
+React UI
+→ user selects a PDF
+→ React sends the PDF to FastAPI
+→ FastAPI validates and saves the file
+→ FastAPI returns document metadata
+→ React displays the uploaded document
+
+## Requirements
+
+### Backend
+
+Add a document upload API:
+
+POST `/api/documents/upload`
+
+The endpoint should:
+
+1. Accept a PDF using FastAPI `UploadFile`.
+2. Validate that the uploaded file is a PDF.
+3. Reject unsupported file types with a proper HTTP error.
+4. Generate a unique document ID.
+5. Save uploaded PDFs inside a suitable backend storage directory.
+6. Do not put uploaded files inside the Python source-code directories.
+7. Return useful metadata, for example:
+
+```json
+{
+  "document_id": "...",
+  "filename": "example.pdf",
+  "file_type": "pdf",
+  "file_size": 12345
+}
+```
+
+Keep the upload/storage logic separate from the API route where reasonable.
+
+For example, use a service such as:
+
+`document_service.py`
+
+Do not over-engineer this.
+
+### Frontend
+
+Add a simple Document Management section.
+
+It should contain:
+
+* PDF file selector
+* Upload button
+* Upload progress/loading state
+* Success message
+* Error message
+* List of uploaded documents
+
+For each uploaded document display:
+
+* filename
+* file type
+* file size
+* document ID
+
+The UI should be clean and consistent with the RAGLab Step 1 design.
+
+### Important architecture rules
+
+Keep the existing Step 1 architecture intact.
+
+Use the existing:
+
+* React frontend
+* FastAPI backend
+* API structure
+* services structure
+* models structure
+
+Do not rewrite working Step 1 code unnecessarily.
+
+Create reusable frontend components where appropriate, but keep them simple enough for a beginner to understand.
+
+Use Pydantic response models for the API response rather than returning arbitrary dictionaries everywhere.
+
+### Storage
+
+For this milestone, use local filesystem storage.
+
+Example conceptual structure:
+
+```text
+backend/
+├── app/
+│   ├── api/
+│   ├── core/
+│   ├── models/
+│   └── services/
+└── storage/
+    └── documents/
+```
+
+Make sure uploaded files are ignored by Git.
+
+Do NOT store uploaded PDFs in GitHub.
+
+Update `.gitignore` accordingly.
+
+### Error handling
+
+Handle at least:
+
+* No file selected
+* Non-PDF file
+* Empty file
+* Upload failure
+* Backend unavailable
+
+Return useful errors from FastAPI and display understandable messages in React.
+
+### Do NOT implement yet
+
+Do not add:
+
+* PDF parsing
+* PyMuPDF
+* text extraction
+* chunking
+* embeddings
+* Sentence Transformers
+* ChromaDB
+* vector search
+* Grok
+* RAG
+* authentication
+* Docker
+* database
+
+Those belong to later milestones.
+
+## After implementation
+
+Do NOT immediately continue to Step 3.
+
+First show me:
+
+1. Final folder structure.
+2. Files created or modified.
+3. Explanation of the upload flow from React to FastAPI.
+4. Explanation of the important backend code.
+5. Explanation of the important React code.
+6. Exact commands to start the backend and frontend.
+7. Manual test cases I should perform.
+8. Example API request/response.
+9. Explain how the uploaded PDF is stored.
+10. Explain why uploaded PDFs should not be committed to Git.
+
+Finally, tell me the exact Git commands I can use to commit this milestone.
+
+Stop after Step 2. Wait for me to explicitly ask for Step 3.

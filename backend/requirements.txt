@@ -5,3 +5,4 @@ fastapi==0.121.2         # web framework that serves our API
 uvicorn[standard]==0.41.0 # ASGI server that actually runs FastAPI
 pydantic==2.12.4         # data validation + response models
 pydantic-settings==2.13.0 # reads configuration from environment variables / .env
+python-multipart==0.0.21 # required by FastAPI to parse multipart file uploads
