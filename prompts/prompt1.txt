@@ -1,0 +1,97 @@
+I want to build a project called **RAGLab**.
+
+RAGLab is an educational, production-style RAG application that I will build incrementally to deeply understand RAG, Python, React, APIs, vector databases, embeddings, retrieval, reranking, and evaluation.
+
+Tech stack:
+
+Frontend:
+
+* React
+* Vite
+* JavaScript
+* Plain CSS initially
+
+Backend:
+
+* Python
+* FastAPI
+* Pydantic
+
+AI/RAG:
+
+* ChromaDB will be used as the initial local vector database
+* A free local Hugging Face/Sentence Transformers embedding model will be used later
+* xAI Grok API will be used later for LLM generation
+
+IMPORTANT DEVELOPMENT RULES:
+
+1. Do NOT build the entire RAG application now.
+2. We will build the application milestone by milestone.
+3. Only implement the requirements for the current milestone.
+4. Do not add future RAG functionality prematurely.
+5. Keep the code clean, modular, readable, and suitable for a GitHub portfolio.
+6. Use clear separation between frontend and backend. use venv to install packages.
+7. Use environment variables for secrets.
+8. Never hard-code API keys.
+9. Add useful error handling.
+10. Add a README explaining what has been implemented.
+11. Do not introduce unnecessary libraries.
+12. Prefer simple implementations that I can understand as a learner.
+13. Do not hide important logic behind unnecessary abstractions.
+14. Use meaningful names for files, functions, variables, and components.
+15. Keep the architecture consistent so future milestones can extend the existing code instead of rewriting it.
+
+CURRENT MILESTONE: STEP 1 — PROJECT FOUNDATION
+
+Build only the initial full-stack skeleton.
+
+Required structure:
+
+raglab/
+├── frontend/
+│   └── React + Vite application
+├── backend/
+│   ├── app/
+│   │   ├── main.py
+│   │   ├── api/
+│   │   ├── core/
+│   │   ├── models/
+│   │   └── services/
+│   └── requirements.txt
+├── .gitignore
+├── .env.example
+└── README.md
+
+Requirements:
+
+1. Create the React frontend using Vite.
+2. Create the Python FastAPI backend.
+3. Add a simple GET `/api/health` endpoint.
+4. Make the React frontend call `/api/health`.
+5. Display the backend health status in the React UI.
+6. Configure development CORS correctly.
+7. Create a clean basic UI with:
+
+   * RAGLab title
+   * Short project description
+   * Backend connection/health status
+8. Create `.env.example` files where appropriate.
+9. Do not add document upload, embeddings, ChromaDB, Grok, authentication, database, or any other RAG feature yet.
+10. Do not add Docker yet.
+
+After implementation:
+
+1. Show me the final folder structure.
+2. Explain every important file in simple terms.
+3. Tell me exactly how to start the backend.
+4. Tell me exactly how to start the frontend.
+5. Tell me how to test the health endpoint.
+6. Tell me how to verify that React is communicating with FastAPI.
+7. Tell me what I should manually test before moving to Step 2.
+
+IMPORTANT:
+I am using Claude Code from the terminal and I want to understand the code myself.
+
+Therefore, do not just generate code and say it works. Explain the architecture and the important code decisions after implementation.
+
+Do not start Step 2 until I explicitly ask for it.

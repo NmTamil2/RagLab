@@ -1,0 +1,41 @@
+# --- Secrets ---------------------------------------------------------------
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# --- Python ----------------------------------------------------------------
+venv/
+.venv/
+env/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# --- Node / frontend -------------------------------------------------------
+node_modules/
+dist/
+dist-ssr/
+*.local
+.vite/
+
+# --- Editors & OS ----------------------------------------------------------
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# --- Logs ------------------------------------------------------------------
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# --- Future milestones -----------------------------------------------------
+# Local vector store data (added in a later step)
+chroma_db/
+data/
