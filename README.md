@@ -4,10 +4,10 @@ An educational, production-style **Retrieval-Augmented Generation** application,
 built milestone by milestone to learn RAG, Python, React, APIs, vector
 databases, embeddings, retrieval, reranking and evaluation from the ground up.
 
-> **Current status: Step 2 — Document Upload.**
-> A full-stack skeleton with a health check, plus PDF upload: React sends a
-> file to FastAPI, which validates it, stores it on disk and returns metadata.
-> No text extraction, embeddings or retrieval yet.
+> **Current status: Step 3 — PDF Parsing and Text Extraction.**
+> A full-stack skeleton with a health check, PDF upload, and page-by-page text
+> extraction: FastAPI opens a stored PDF with PyMuPDF and returns its text with
+> page numbers preserved. No chunking, embeddings or retrieval yet.
 
 ---
 
@@ -16,7 +16,7 @@ databases, embeddings, retrieval, reranking and evaluation from the ground up.
 | Layer    | Choice                                            |
 | -------- | ------------------------------------------------- |
 | Frontend | React 19, Vite, JavaScript, plain CSS             |
-| Backend  | Python, FastAPI, Pydantic, Uvicorn                |
+| Backend  | Python, FastAPI, Pydantic, Uvicorn, PyMuPDF       |
 | Planned  | ChromaDB, Sentence Transformers, xAI Grok API     |
 
 ---
@@ -30,16 +30,20 @@ raglab/
 │   │   ├── main.py                   # app setup: CORS, routers, error handler
 │   │   ├── api/
 │   │   │   ├── health.py             # GET /api/health
-│   │   │   └── documents.py          # POST /api/documents/upload
+│   │   │   └── documents.py          # POST /api/documents/upload + .../extract
 │   │   ├── core/
 │   │   │   └── config.py             # settings read from environment variables
 │   │   ├── models/
 │   │   │   ├── health.py             # Pydantic response models
-│   │   │   └── document.py
+│   │   │   └── document.py           # upload metadata + extraction models
 │   │   └── services/
 │   │       ├── health_service.py     # logic layer (no HTTP knowledge)
-│   │       └── document_service.py   # validation + file storage
-│   ├── storage/documents/            # uploaded PDFs (git-ignored)
+│   │       ├── document_service.py   # validation + file storage + lookup
+│   │       └── document_parser.py    # PyMuPDF page-by-page text extraction
+│   ├── tests/
+│   │   └── test_document_parser.py   # parser tests (pytest)
+│   ├── storage/documents/            # uploaded PDFs + metadata (git-ignored)
+│   ├── pytest.ini
 │   ├── requirements.txt
 │   └── .env.example
 ├── frontend/
@@ -49,6 +53,7 @@ raglab/
 │   │   │   ├── HealthStatus.jsx      # loading / error / success UI
 │   │   │   ├── DocumentUpload.jsx    # file picker + upload states
 │   │   │   ├── DocumentList.jsx      # uploaded documents
+│   │   │   ├── DocumentExtract.jsx   # Extract Text button + page view
 │   │   │   └── *.css
 │   │   ├── utils/formatFileSize.js   # bytes -> "1.4 MB"
 │   │   ├── App.jsx                   # page shell, owns document list state
@@ -113,6 +118,14 @@ npm run dev
 
 The frontend is now at **http://localhost:5173**.
 
+### 3. Backend tests
+
+From `backend/`, with the virtual environment active:
+
+```bash
+pytest
+```
+
 ---
 
 ## Verifying it works
@@ -129,7 +142,7 @@ Expected:
 {
   "status": "ok",
   "service": "RAGLab API",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "environment": "development",
   "timestamp": "2026-08-11T05:25:23.813646+00:00"
 }
@@ -148,16 +161,21 @@ It should appear in the Uploaded Documents list with its size and ID, and the
 file should exist as `backend/storage/documents/<document_id>.pdf`. Try a
 `.txt` file too — it must be rejected with a readable message.
 
+**Extract:** click *Extract Text* under an uploaded document. The page count
+appears, followed by each page's text under its own numbered heading. A blank
+page is shown as *"No text on this page."* rather than being skipped.
+
 ---
 
-## API reference (Step 1)
+## API reference
 
-| Method | Path                     | Description                |
-| ------ | ------------------------ | -------------------------- |
-| GET    | `/`                      | Service info and doc links |
-| GET    | `/api/health`            | Backend health check       |
-| POST   | `/api/documents/upload`  | Upload a PDF (form field `file`) |
-| GET    | `/docs`                  | Interactive Swagger UI     |
+| Method | Path                                    | Description                      |
+| ------ | --------------------------------------- | -------------------------------- |
+| GET    | `/`                                     | Service info and doc links       |
+| GET    | `/api/health`                           | Backend health check             |
+| POST   | `/api/documents/upload`                 | Upload a PDF (form field `file`) |
+| POST   | `/api/documents/{document_id}/extract`  | Extract text, page by page       |
+| GET    | `/docs`                                 | Interactive Swagger UI           |
 
 Upload example:
 
@@ -175,14 +193,34 @@ curl -F "file=@mydoc.pdf" http://localhost:8000/api/documents/upload
 }
 ```
 
+Extract example:
+
+```bash
+curl -X POST http://localhost:8000/api/documents/c15d9432-bb14-43de-a5ba-f0cdf3829cd6/extract
+```
+
+```json
+{
+  "document_id": "c15d9432-bb14-43de-a5ba-f0cdf3829cd6",
+  "filename": "mydoc.pdf",
+  "page_count": 3,
+  "pages": [
+    { "page_number": 1, "text": "ADAS Overview\nAdvanced Driver Assistance..." },
+    { "page_number": 2, "text": "" },
+    { "page_number": 3, "text": "Chapter 2\nSensor fusion combines..." }
+  ]
+}
+```
+
 Error responses use `{"detail": "..."}`:
 
-| Status | When                                          |
-| ------ | --------------------------------------------- |
-| 400    | Not a PDF, empty file, or missing filename    |
-| 413    | Larger than `MAX_UPLOAD_SIZE_MB`              |
-| 422    | No `file` field in the request                |
-| 500    | Valid file, but the disk write failed         |
+| Status | When                                                            |
+| ------ | --------------------------------------------------------------- |
+| 400    | Upload: not a PDF, empty file, or missing filename              |
+| 404    | Extract: unknown document ID, or its stored file is gone        |
+| 413    | Upload: larger than `MAX_UPLOAD_SIZE_MB`                        |
+| 422    | Upload: no `file` field. Extract: corrupt, encrypted or no text |
+| 500    | Disk write failed, or the parser failed unexpectedly            |
 
 ---
 
@@ -236,10 +274,29 @@ code. The original name is kept in the response metadata only.
 starts with the `%PDF-` magic bytes, so a renamed `.exe` is rejected even though
 its name ends in `.pdf`.
 
+**Page numbers are never lost.** `document_parser.py` returns one record per
+page, and pages with no text are kept as empty entries instead of being
+dropped. If a blank page were skipped, every page after it would be misnumbered
+— and page numbers are what later milestones use for chunk metadata, retrieval
+results and citations.
+
+**Only one module knows about PyMuPDF.** `document_parser.py` is the sole
+importer of `pymupdf`. Routes deal in paths and models, so swapping the PDF
+library later would touch one file.
+
+**Document IDs from the URL are validated as UUIDs** before being used to build
+a filesystem path, so a crafted ID cannot escape the storage folder.
+
+**The original filename lives in a sidecar JSON file** next to each stored PDF,
+because uploads are renamed to `<uuid>.pdf` and the PDF itself cannot tell us
+what the user called it. A real database replaces this in a later milestone; if
+the sidecar is missing, the lookup falls back to what the file itself knows.
+
 ---
 
 ## Roadmap
 
 - [x] **Step 1** — Project foundation: full-stack skeleton + health check
 - [x] **Step 2** — Document upload: PDF validation and local file storage
-- [ ] **Step 3** — *not started; awaiting instructions*
+- [x] **Step 3** — PDF parsing: page-by-page text extraction with PyMuPDF
+- [ ] **Step 4** — *not started; awaiting instructions*

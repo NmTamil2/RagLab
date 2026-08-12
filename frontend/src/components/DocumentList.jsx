@@ -1,3 +1,4 @@
+import DocumentExtract from "./DocumentExtract";
 import { formatFileSize } from "../utils/formatFileSize";
 import "./DocumentList.css";
 
@@ -41,6 +42,8 @@ function DocumentList({ documents }) {
               <dt>ID</dt>
               <dd className="document-id">{document.document_id}</dd>
             </dl>
+
+            <DocumentExtract documentId={document.document_id} />
           </li>
         ))}
       </ul>

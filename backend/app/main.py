@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 app = FastAPI(
     title=settings.app_name,
     version=settings.app_version,
-    description="Educational, production-style RAG application. Step 2: document upload.",
+    description="Educational, production-style RAG application. Step 3: PDF text extraction.",
 )
 
 # --- CORS -------------------------------------------------------------------

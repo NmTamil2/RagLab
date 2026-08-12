@@ -1,0 +1,232 @@
+We completed RAGLab Step 2 — Document Upload.
+
+Now implement ONLY Step 3 — PDF Parsing and Text Extraction.
+
+Do not implement chunking, embeddings, vector databases, retrieval, reranking, Grok, or any other future RAG functionality yet.
+
+## Goal
+
+When a PDF has been uploaded, the backend should be able to open the PDF and extract its text page by page.
+
+The important flow is:
+
+Uploaded PDF
+    ↓
+PDF parser
+    ↓
+Page-by-page text extraction
+    ↓
+Structured page data
+
+For example:
+
+{
+    "document_id": "...",
+    "filename": "adas.pdf",
+    "pages": [
+        {
+            "page_number": 1,
+            "text": "..."
+        },
+        {
+            "page_number": 2,
+            "text": "..."
+        }
+    ]
+}
+
+## Technology
+
+Use PyMuPDF for PDF parsing.
+
+Add the required dependency to the backend requirements.
+
+Do not introduce another PDF parsing library unless there is a strong technical reason.
+
+## Backend requirements
+
+Create a clean document parsing service.
+
+For example:
+
+backend/app/services/document_parser.py
+
+The parser should:
+
+1. Accept a PDF file path.
+2. Open the PDF using PyMuPDF.
+3. Iterate through every page.
+4. Extract text from each page.
+5. Clean only obvious unwanted whitespace.
+6. Preserve page boundaries.
+7. Return structured page-level data.
+8. Close the PDF properly after processing.
+9. Handle invalid/corrupted PDFs gracefully.
+
+Do not perform chunking in this step.
+
+Do not generate embeddings.
+
+Do not store anything in ChromaDB.
+
+Do not call an LLM.
+
+## API
+
+Add an endpoint that allows us to extract text from an already uploaded document.
+
+For example:
+
+POST or GET:
+
+/api/documents/{document_id}/extract
+
+Choose the HTTP method that best fits the operation and explain why.
+
+The endpoint should:
+
+1. Find the uploaded document using its document ID.
+2. Verify that the file exists.
+3. Pass the file path to the document parser service.
+4. Return the extracted page data.
+
+Use a Pydantic response model.
+
+Example response:
+
+{
+    "document_id": "...",
+    "filename": "adas.pdf",
+    "page_count": 3,
+    "pages": [
+        {
+            "page_number": 1,
+            "text": "..."
+        },
+        {
+            "page_number": 2,
+            "text": "..."
+        }
+    ]
+}
+
+Do not return unnecessary information.
+
+## Frontend
+
+Add a simple "Extract Text" action for uploaded documents.
+
+For each uploaded document, provide an Extract Text button.
+
+After extraction:
+
+- Show page count.
+- Show the extracted text.
+- Clearly separate pages.
+- Show page numbers.
+- Show loading state while extraction is running.
+- Show a useful error message if extraction fails.
+
+Keep the UI consistent with the existing RAGLab design.
+
+Do not build a complicated text editor or document viewer.
+
+## Important architecture rules
+
+Keep the existing Step 1 and Step 2 architecture.
+
+Do not rewrite working code unnecessarily.
+
+Keep responsibilities separated:
+
+API route
+    ↓
+Document service/parser
+    ↓
+PyMuPDF
+
+Do not put PDF parsing logic directly inside the FastAPI route.
+
+Use meaningful names and simple code.
+
+## Important RAG learning requirement
+
+Preserve page numbers.
+
+Later, we will need page numbers for:
+
+- chunk metadata
+- retrieval results
+- citations
+- RAG evaluation
+
+Do not lose the relationship between extracted text and its original PDF page.
+
+## Error handling
+
+Handle at least:
+
+- document ID does not exist
+- uploaded PDF does not exist
+- invalid/corrupted PDF
+- PDF contains no extractable text
+- parser failure
+
+Return appropriate HTTP status codes and useful error messages.
+
+## Testing
+
+Add basic backend tests for the parser if the existing project structure supports tests cleanly.
+
+At minimum test:
+
+1. A normal text-based PDF.
+2. A multi-page PDF.
+3. An invalid/corrupted PDF.
+4. A PDF with an empty page.
+
+Do not create an unnecessarily large testing framework.
+
+## Do NOT implement
+
+Do not add:
+
+- chunking
+- chunk overlap
+- embeddings
+- Sentence Transformers
+- ChromaDB
+- vector search
+- keyword search
+- hybrid search
+- reranking
+- Grok
+- RAG generation
+- citations
+- evaluation
+- authentication
+- Docker
+
+Those belong to later milestones.
+
+## After implementation
+
+Stop after Step 3.
+
+Show me:
+
+1. Final folder structure.
+2. Files created or modified.
+3. Explain how PyMuPDF reads the PDF.
+4. Explain why page-level extraction is important for RAG.
+5. Explain the API flow.
+6. Explain the service/API separation.
+7. Explain the Pydantic response model.
+8. Give exact commands to start frontend and backend.
+9. Give manual test cases.
+10. Give example API response.
+11. Give the Git commands for committing this milestone.
+
+Do not start Step 4.
+
+Wait until I explicitly ask for Step 4.

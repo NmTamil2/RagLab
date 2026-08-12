@@ -1,4 +1,4 @@
-# RAGLab backend dependencies (Step 1 — project foundation)
+# RAGLab backend dependencies
 # Keep this list minimal. Add new packages only when a milestone needs them.
 
 fastapi==0.121.2         # web framework that serves our API
@@ -6,3 +6,7 @@ uvicorn[standard]==0.41.0 # ASGI server that actually runs FastAPI
 pydantic==2.12.4         # data validation + response models
 pydantic-settings==2.13.0 # reads configuration from environment variables / .env
 python-multipart==0.0.21 # required by FastAPI to parse multipart file uploads
+pymupdf==1.28.2          # PDF parsing / page-by-page text extraction (Step 3)
+
+# --- Development only -------------------------------------------------------
+pytest==9.1.1            # test runner for backend/tests/

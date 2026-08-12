@@ -41,7 +41,9 @@ function App() {
         <DocumentList documents={documents} />
       </main>
 
-      <footer className="app-footer">Step 2 — Document upload</footer>
+      <footer className="app-footer">
+        Step 3 — PDF parsing and text extraction
+      </footer>
     </div>
   );
 }

@@ -32,7 +32,7 @@ class Settings(BaseSettings):
 
     # --- Identity -----------------------------------------------------------
     app_name: str = "RAGLab API"
-    app_version: str = "0.2.0"
+    app_version: str = "0.3.0"
     environment: str = "development"
 
     # --- CORS ---------------------------------------------------------------

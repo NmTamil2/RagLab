@@ -32,3 +32,46 @@ class DocumentMetadata(BaseModel):
         description="UTC time the upload completed, in ISO 8601.",
         examples=["2026-01-01T12:00:00+00:00"],
     )
+
+
+class PageText(BaseModel):
+    """The text of a single PDF page.
+
+    Text is always carried together with the page it came from. Keeping them in
+    one object makes it impossible to end up with a list of strings whose
+    origins have been lost.
+    """
+
+    page_number: int = Field(
+        description="1-based page number, matching what a PDF reader displays.",
+        examples=[1],
+    )
+    text: str = Field(
+        description="Extracted text of this page. Empty when the page has none.",
+        examples=["Advanced Driver Assistance Systems\n\n1. Introduction ..."],
+    )
+
+
+class DocumentExtraction(BaseModel):
+    """What the API returns after a document's text has been extracted.
+
+    Deliberately small: the document it came from, how many pages there were,
+    and the pages themselves. Nothing about storage paths or file sizes — the
+    caller already has that from the upload response.
+    """
+
+    document_id: str = Field(
+        description="ID of the document the text was extracted from.",
+        examples=["3f1c9f0e-7b2a-4a1e-9f5b-2c8d0e4a6b31"],
+    )
+    filename: str = Field(
+        description="Original filename, so results stay readable to a human.",
+        examples=["adas.pdf"],
+    )
+    page_count: int = Field(
+        description="Number of pages in the PDF, equal to len(pages).",
+        examples=[3],
+    )
+    pages: list[PageText] = Field(
+        description="One entry per page, in document order.",
+    )

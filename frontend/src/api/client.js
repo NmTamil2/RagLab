@@ -92,4 +92,18 @@ export function uploadDocument(file) {
   });
 }
 
+/**
+ * POST /api/documents/{document_id}/extract — read a stored PDF's text.
+ *
+ * POST, not GET: the backend opens and parses the whole file, which is real
+ * work rather than a lookup of something already sitting there.
+ *
+ * @param {string} documentId - the ID returned by uploadDocument
+ * @returns {Promise<{document_id: string, filename: string, page_count: number,
+ *                    pages: Array<{page_number: number, text: string}>}>}
+ */
+export function extractDocumentText(documentId) {
+  return request(`/api/documents/${documentId}/extract`, { method: "POST" });
+}
+
 export { API_BASE_URL };
