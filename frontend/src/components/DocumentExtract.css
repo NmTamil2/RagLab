@@ -4,11 +4,6 @@
   border-top: 1px solid var(--border);
 }
 
-.button--small {
-  padding: 0.35rem 0.75rem;
-  font-size: 0.8rem;
-}
-
 .extract-status {
   margin: 0.625rem 0 0;
   color: var(--muted);

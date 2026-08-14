@@ -42,7 +42,7 @@ function App() {
       </main>
 
       <footer className="app-footer">
-        Step 3 — PDF parsing and text extraction
+        Step 4 — Document chunking
       </footer>
     </div>
   );

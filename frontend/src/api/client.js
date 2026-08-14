@@ -106,4 +106,23 @@ export function extractDocumentText(documentId) {
   return request(`/api/documents/${documentId}/extract`, { method: "POST" });
 }
 
+/**
+ * POST /api/documents/{document_id}/chunk — split a stored PDF into chunks.
+ *
+ * Sends no chunk_size / chunk_overlap, so the backend uses its configured
+ * values and reports them back in the response. Passing them as query
+ * parameters is supported by the API when you want to compare settings.
+ *
+ * @param {string} documentId - the ID returned by uploadDocument
+ * @returns {Promise<{document_id: string, filename: string, page_count: number,
+ *                    chunk_count: number, chunk_size: number,
+ *                    chunk_overlap: number,
+ *                    chunks: Array<{chunk_id: string, document_id: string,
+ *                                   page_number: number, chunk_index: number,
+ *                                   char_count: number, text: string}>}>}
+ */
+export function chunkDocument(documentId) {
+  return request(`/api/documents/${documentId}/chunk`, { method: "POST" });
+}
+
 export { API_BASE_URL };

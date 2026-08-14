@@ -4,10 +4,11 @@ An educational, production-style **Retrieval-Augmented Generation** application,
 built milestone by milestone to learn RAG, Python, React, APIs, vector
 databases, embeddings, retrieval, reranking and evaluation from the ground up.
 
-> **Current status: Step 3 — PDF Parsing and Text Extraction.**
-> A full-stack skeleton with a health check, PDF upload, and page-by-page text
-> extraction: FastAPI opens a stored PDF with PyMuPDF and returns its text with
-> page numbers preserved. No chunking, embeddings or retrieval yet.
+> **Current status: Step 4 — Document Chunking.**
+> A full-stack skeleton with a health check, PDF upload, page-by-page text
+> extraction, and character-based chunking: page text is cut into small
+> overlapping pieces that each remember their document, page and position.
+> No embeddings, vector database or retrieval yet.
 
 ---
 
@@ -30,18 +31,21 @@ raglab/
 │   │   ├── main.py                   # app setup: CORS, routers, error handler
 │   │   ├── api/
 │   │   │   ├── health.py             # GET /api/health
-│   │   │   └── documents.py          # POST /api/documents/upload + .../extract
+│   │   │   └── documents.py          # upload + extract + chunk routes
 │   │   ├── core/
 │   │   │   └── config.py             # settings read from environment variables
 │   │   ├── models/
 │   │   │   ├── health.py             # Pydantic response models
-│   │   │   └── document.py           # upload metadata + extraction models
+│   │   │   ├── document.py           # upload metadata + extraction models
+│   │   │   └── chunk.py              # chunk + chunking-result models
 │   │   └── services/
 │   │       ├── health_service.py     # logic layer (no HTTP knowledge)
 │   │       ├── document_service.py   # validation + file storage + lookup
-│   │       └── document_parser.py    # PyMuPDF page-by-page text extraction
+│   │       ├── document_parser.py    # PyMuPDF page-by-page text extraction
+│   │       └── chunking_service.py   # character-based sliding-window chunking
 │   ├── tests/
-│   │   └── test_document_parser.py   # parser tests (pytest)
+│   │   ├── test_document_parser.py   # parser tests (pytest)
+│   │   └── test_chunking_service.py  # chunking tests (pytest)
 │   ├── storage/documents/            # uploaded PDFs + metadata (git-ignored)
 │   ├── pytest.ini
 │   ├── requirements.txt
@@ -54,6 +58,7 @@ raglab/
 │   │   │   ├── DocumentUpload.jsx    # file picker + upload states
 │   │   │   ├── DocumentList.jsx      # uploaded documents
 │   │   │   ├── DocumentExtract.jsx   # Extract Text button + page view
+│   │   │   ├── DocumentChunks.jsx    # Chunk Document button + chunk preview
 │   │   │   └── *.css
 │   │   ├── utils/formatFileSize.js   # bytes -> "1.4 MB"
 │   │   ├── App.jsx                   # page shell, owns document list state
@@ -142,7 +147,7 @@ Expected:
 {
   "status": "ok",
   "service": "RAGLab API",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "environment": "development",
   "timestamp": "2026-08-11T05:25:23.813646+00:00"
 }
@@ -165,6 +170,12 @@ file should exist as `backend/storage/documents/<document_id>.pdf`. Try a
 appears, followed by each page's text under its own numbered heading. A blank
 page is shown as *"No text on this page."* rather than being skipped.
 
+**Chunk:** click *Chunk Document*. The chunk count and the `chunk_size` /
+`chunk_overlap` used appear, followed by the chunks themselves — each with its
+index, page number, ID and length. Compare the end of one chunk with the start
+of the next: the last `chunk_overlap` characters repeat. Change `CHUNK_SIZE` in
+`backend/.env`, restart the backend, and click again to see the difference.
+
 ---
 
 ## API reference
@@ -175,6 +186,7 @@ page is shown as *"No text on this page."* rather than being skipped.
 | GET    | `/api/health`                           | Backend health check             |
 | POST   | `/api/documents/upload`                 | Upload a PDF (form field `file`) |
 | POST   | `/api/documents/{document_id}/extract`  | Extract text, page by page       |
+| POST   | `/api/documents/{document_id}/chunk`    | Split the text into chunks       |
 | GET    | `/docs`                                 | Interactive Swagger UI           |
 
 Upload example:
@@ -212,15 +224,45 @@ curl -X POST http://localhost:8000/api/documents/c15d9432-bb14-43de-a5ba-f0cdf38
 }
 ```
 
+Chunk example — the two query parameters are optional and default to the
+configured `CHUNK_SIZE` / `CHUNK_OVERLAP`, so settings can be compared without
+restarting the server:
+
+```bash
+curl -X POST "http://localhost:8000/api/documents/c15d9432-.../chunk"
+curl -X POST "http://localhost:8000/api/documents/c15d9432-.../chunk?chunk_size=300&chunk_overlap=30"
+```
+
+```json
+{
+  "document_id": "c15d9432-bb14-43de-a5ba-f0cdf3829cd6",
+  "filename": "mydoc.pdf",
+  "page_count": 3,
+  "chunk_count": 5,
+  "chunk_size": 500,
+  "chunk_overlap": 50,
+  "chunks": [
+    {
+      "chunk_id": "c15d9432-bb14-43de-a5ba-f0cdf3829cd6-p1-c0",
+      "document_id": "c15d9432-bb14-43de-a5ba-f0cdf3829cd6",
+      "page_number": 1,
+      "chunk_index": 0,
+      "char_count": 500,
+      "text": "ADAS Overview Advanced driver assistance systems ..."
+    }
+  ]
+}
+```
+
 Error responses use `{"detail": "..."}`:
 
-| Status | When                                                            |
-| ------ | --------------------------------------------------------------- |
-| 400    | Upload: not a PDF, empty file, or missing filename              |
-| 404    | Extract: unknown document ID, or its stored file is gone        |
-| 413    | Upload: larger than `MAX_UPLOAD_SIZE_MB`                        |
-| 422    | Upload: no `file` field. Extract: corrupt, encrypted or no text |
-| 500    | Disk write failed, or the parser failed unexpectedly            |
+| Status | When                                                                    |
+| ------ | ----------------------------------------------------------------------- |
+| 400    | Upload: not a PDF, empty file, or missing filename. Chunk: `chunk_size` ≤ 0, negative `chunk_overlap`, or overlap ≥ size |
+| 404    | Extract/chunk: unknown document ID, or its stored file is gone          |
+| 413    | Upload: larger than `MAX_UPLOAD_SIZE_MB`                                |
+| 422    | Upload: no `file` field. Extract/chunk: corrupt, encrypted or no text    |
+| 500    | Disk write failed, or the parser failed unexpectedly                    |
 
 ---
 
@@ -237,6 +279,8 @@ variables; `.env` files are git-ignored and only `.env.example` is committed.
 | `CORS_ALLOWED_ORIGINS` | backend  | Comma-separated allowed frontends   |
 | `DOCUMENTS_DIR`        | backend  | Where uploaded PDFs are stored      |
 | `MAX_UPLOAD_SIZE_MB`   | backend  | Upload size ceiling                 |
+| `CHUNK_SIZE`           | backend  | Characters per chunk                |
+| `CHUNK_OVERLAP`        | backend  | Characters repeated between chunks  |
 | `VITE_API_BASE_URL`    | frontend | Base URL of the backend             |
 
 ⚠️ `VITE_*` variables are bundled into the browser build — never put a secret
@@ -287,6 +331,31 @@ library later would touch one file.
 **Document IDs from the URL are validated as UUIDs** before being used to build
 a filesystem path, so a crafted ID cannot escape the storage folder.
 
+**Chunks stay inside one page.** Each page is chunked on its own, so a chunk
+never contains text from two pages and `page_number` is one exact number rather
+than a range. The alternative — joining the whole document into one string and
+sliding a window over it — produces slightly better chunks at page breaks, but
+every chunk that crosses a boundary then needs a *list* of pages, and every
+consumer of that metadata (retrieval display, citations, evaluation) has to
+decide which of them to show a user. Exact page numbers are worth more right now
+than perfect prose at page boundaries, and this is the reversible choice: making
+chunks span pages later is a change to one function, while recovering a page
+number that was never recorded is impossible.
+
+**Chunk size and overlap are configuration, not constants.** They live in
+`Settings`, arrive at the chunker as a validated `ChunkingConfig` object, and
+are echoed back in every response. The chunking functions never read `settings`
+themselves, which is why the tests can drive them with any values. Invalid
+combinations are rejected in the `ChunkingConfig` constructor, so an unusable
+config cannot exist anywhere in the system — and an overlap that is not smaller
+than the chunk size (which would make chunking loop forever) stops the server at
+startup rather than at request time.
+
+**Chunk IDs are derived, not random.** `<document_id>-p<page>-c<index>` is
+readable in the UI and stable: re-chunking a document with the same settings
+produces the same IDs, so re-running will overwrite rather than duplicate when
+chunks reach a vector store.
+
 **The original filename lives in a sidecar JSON file** next to each stored PDF,
 because uploads are renamed to `<uuid>.pdf` and the PDF itself cannot tell us
 what the user called it. A real database replaces this in a later milestone; if
@@ -299,4 +368,6 @@ the sidecar is missing, the lookup falls back to what the file itself knows.
 - [x] **Step 1** — Project foundation: full-stack skeleton + health check
 - [x] **Step 2** — Document upload: PDF validation and local file storage
 - [x] **Step 3** — PDF parsing: page-by-page text extraction with PyMuPDF
-- [ ] **Step 4** — *not started; awaiting instructions*
+- [x] **Step 4** — Document chunking: configurable character-based chunks with
+      page metadata
+- [ ] **Step 5** — *not started; awaiting instructions*

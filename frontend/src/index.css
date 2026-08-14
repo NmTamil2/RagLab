@@ -73,6 +73,14 @@ body {
   transition: border-color 0.15s ease;
 }
 
+/* A quieter button for actions inside a list item, where a full-size button
+   would compete with the panel's own primary action. Lives here rather than in
+   one component's stylesheet because several components use it. */
+.button--small {
+  padding: 0.35rem 0.75rem;
+  font-size: 0.8rem;
+}
+
 .button:hover:not(:disabled) {
   border-color: var(--accent);
 }

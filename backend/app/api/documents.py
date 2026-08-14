@@ -7,10 +7,12 @@ rules live in the service.
 
 import logging
 
-from fastapi import APIRouter, File, HTTPException, Path, UploadFile, status
+from fastapi import APIRouter, File, HTTPException, Path, Query, UploadFile, status
 
-from app.models.document import DocumentExtraction, DocumentMetadata
-from app.services import document_parser, document_service
+from app.models.chunk import DocumentChunks
+from app.models.document import DocumentExtraction, DocumentMetadata, PageText
+from app.services import chunking_service, document_parser, document_service
+from app.services.chunking_service import InvalidChunkConfigError
 from app.services.document_parser import (
     CorruptedPdfError,
     DocumentParseError,
@@ -64,30 +66,15 @@ async def upload_document(file: UploadFile = File(...)) -> DocumentMetadata:
         )
 
 
-@router.post(
-    "/{document_id}/extract",
-    response_model=DocumentExtraction,
-    summary="Extract the text of an uploaded PDF, page by page",
-)
-def extract_document_text(
-    document_id: str = Path(description="ID returned when the document was uploaded"),
-) -> DocumentExtraction:
-    """Read a stored PDF and return its text, one entry per page.
+def _load_document_pages(
+    document_id: str,
+) -> tuple[DocumentMetadata, list[PageText]]:
+    """Find a stored document and extract its text, or raise the right HTTP error.
 
-    POST rather than GET: this triggers real work on the server — opening and
-    parsing the whole file — instead of handing back a stored resource. GET is
-    meant to be cheap and freely repeatable, and browsers and proxies may cache
-    or pre-fetch it. POST also leaves `/documents/{id}` free to mean "the
-    document itself" later, and is where the next milestones will naturally
-    hang chunking and embedding onto the same call.
-
-    The route itself stays free of PDF logic: it looks the document up, checks
-    the file is there, hands the path to the parser, and maps failures to
-    status codes.
-
-    Declared with `def` rather than `async def` on purpose: parsing is blocking
-    CPU work, and FastAPI runs plain functions in a worker thread, so one large
-    PDF cannot freeze every other request.
+    Both routes below start the same way — look up the document, check the file
+    is really on disk, parse it — and both need the same five failures mapped to
+    the same status codes. Keeping that in one place means the two endpoints can
+    never drift apart and start reporting the same problem differently.
     """
     try:
         metadata = document_service.load_document_metadata(document_id)
@@ -114,9 +101,108 @@ def extract_document_text(
             detail=str(error),
         )
 
+    return metadata, pages
+
+
+@router.post(
+    "/{document_id}/extract",
+    response_model=DocumentExtraction,
+    summary="Extract the text of an uploaded PDF, page by page",
+)
+def extract_document_text(
+    document_id: str = Path(description="ID returned when the document was uploaded"),
+) -> DocumentExtraction:
+    """Read a stored PDF and return its text, one entry per page.
+
+    POST rather than GET: this triggers real work on the server — opening and
+    parsing the whole file — instead of handing back a stored resource. GET is
+    meant to be cheap and freely repeatable, and browsers and proxies may cache
+    or pre-fetch it. POST also leaves `/documents/{id}` free to mean "the
+    document itself" later, and is where the next milestones will naturally
+    hang chunking and embedding onto the same call.
+
+    The route itself stays free of PDF logic: it looks the document up, checks
+    the file is there, hands the path to the parser, and maps failures to
+    status codes.
+
+    Declared with `def` rather than `async def` on purpose: parsing is blocking
+    CPU work, and FastAPI runs plain functions in a worker thread, so one large
+    PDF cannot freeze every other request.
+    """
+    metadata, pages = _load_document_pages(document_id)
+
     return DocumentExtraction(
         document_id=metadata.document_id,
         filename=metadata.filename,
         page_count=len(pages),
         pages=pages,
+    )
+
+
+@router.post(
+    "/{document_id}/chunk",
+    response_model=DocumentChunks,
+    summary="Split an uploaded PDF into overlapping text chunks",
+)
+def chunk_document(
+    document_id: str = Path(description="ID returned when the document was uploaded"),
+    chunk_size: int | None = Query(
+        default=None,
+        description=(
+            "Characters per chunk. Omit to use the server's configured "
+            "CHUNK_SIZE. Provided so different settings can be compared "
+            "without restarting the backend."
+        ),
+        examples=[500],
+    ),
+    chunk_overlap: int | None = Query(
+        default=None,
+        description=(
+            "Characters each chunk repeats from the previous one. Omit to use "
+            "the server's configured CHUNK_OVERLAP. Must be smaller than "
+            "chunk_size."
+        ),
+        examples=[50],
+    ),
+) -> DocumentChunks:
+    """Parse a stored PDF and return its text split into chunks.
+
+    The flow is a straight line through the layers, and this function does none
+    of the work itself:
+
+        route -> document_service (find it)
+              -> document_parser  (page-level text)
+              -> chunking_service (chunks)
+
+    Chunking is not cached or stored yet — each call re-parses and re-chunks the
+    PDF. That is exactly what you want while learning: change the settings, call
+    again, see different chunks. Persisting them belongs with the vector store,
+    in a later milestone.
+
+    `def` rather than `async def` for the same reason as the extract route: this
+    is blocking CPU work, so FastAPI should run it in a worker thread.
+    """
+    # Validate the configuration before touching the disk. If the numbers are
+    # wrong there is no point parsing a 40-page PDF first.
+    try:
+        config = chunking_service.config_from_settings(chunk_size, chunk_overlap)
+    except InvalidChunkConfigError as error:
+        # The client asked for something impossible — 400, their side to fix.
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(error),
+        )
+
+    metadata, pages = _load_document_pages(document_id)
+
+    chunks = chunking_service.chunk_pages(pages, metadata.document_id, config)
+
+    return DocumentChunks(
+        document_id=metadata.document_id,
+        filename=metadata.filename,
+        page_count=len(pages),
+        chunk_count=len(chunks),
+        chunk_size=config.chunk_size,
+        chunk_overlap=config.chunk_overlap,
+        chunks=chunks,
     )

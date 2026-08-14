@@ -1,0 +1,308 @@
+We completed RAGLab Step 3 — PDF Parsing and Text Extraction.
+
+Now implement ONLY Step 4 — Document Chunking.
+
+Do not implement embeddings, ChromaDB, vector search, reranking, hybrid search, Grok, RAG generation, or evaluation yet.
+
+## Goal
+
+Convert the page-level extracted text into smaller chunks that can later be embedded and stored in a vector database.
+
+Current pipeline:
+
+PDF
+ ↓
+Upload
+ ↓
+PyMuPDF
+ ↓
+Page-level text
+
+After this step:
+
+PDF
+ ↓
+Upload
+ ↓
+PyMuPDF
+ ↓
+Page-level text
+ ↓
+Chunking
+ ↓
+Chunks with metadata
+
+## Important learning objective
+
+I want to understand chunking deeply.
+
+Do NOT hide the chunking logic behind a complicated framework.
+
+Implement a simple, readable chunking service in Python.
+
+For example:
+
+backend/app/services/chunking_service.py
+
+Keep the implementation easy for a beginner to read and understand.
+
+## Chunk model
+
+Each generated chunk should preserve metadata.
+
+At minimum:
+
+{
+    "chunk_id": "...",
+    "document_id": "...",
+    "page_number": 1,
+    "chunk_index": 0,
+    "text": "..."
+}
+
+If a chunk spans multiple pages, design the metadata carefully so the source page information is not lost.
+
+For this first implementation, prefer keeping chunks within a single page if practical.
+
+Explain this design decision.
+
+## Configurable chunking
+
+Do NOT hard-code chunk size and overlap directly inside the chunking function.
+
+Create configuration values such as:
+
+chunk_size = 500
+chunk_overlap = 50
+
+Use a clean configuration approach consistent with the existing project.
+
+The chunking service should receive the configuration rather than depending on random constants throughout the code.
+
+## Chunking behavior
+
+Implement a basic character-based chunking algorithm first.
+
+Do not introduce LangChain or another chunking framework.
+
+The algorithm should:
+
+1. Receive page-level text.
+2. Normalize unnecessary whitespace.
+3. Split text into chunks based on chunk size.
+4. Apply chunk overlap.
+5. Preserve page number.
+6. Generate a unique chunk ID.
+7. Generate a chunk index.
+8. Avoid empty chunks.
+9. Handle pages shorter than the chunk size.
+10. Handle pages with no extractable text.
+
+Explain the algorithm clearly.
+
+For example, if:
+
+chunk_size = 500
+chunk_overlap = 50
+
+then conceptually:
+
+Chunk 1:
+characters 0–499
+
+Chunk 2:
+characters 450–949
+
+Chunk 3:
+characters 900–1399
+
+Do not blindly copy this example if your implementation uses a better boundary strategy, but keep the implementation simple.
+
+## Important design consideration
+
+We will later experiment with different chunk sizes and overlaps.
+
+Therefore the chunking implementation must make it easy to change:
+
+- chunk size
+- overlap
+
+without changing the core chunking code.
+
+## API
+
+Add an endpoint that allows chunking an already uploaded document.
+
+The endpoint should:
+
+1. Receive a document ID.
+2. Find the uploaded PDF.
+3. Extract page-level text using the existing document parser.
+4. Pass the extracted pages to the chunking service.
+5. Return the generated chunks.
+
+Keep the existing architecture:
+
+API route
+    ↓
+Document service/parser
+    ↓
+Chunking service
+
+Do not put chunking logic directly inside the FastAPI route.
+
+Use Pydantic response models.
+
+Example response:
+
+{
+    "document_id": "...",
+    "chunk_count": 10,
+    "chunk_size": 500,
+    "chunk_overlap": 50,
+    "chunks": [
+        {
+            "chunk_id": "...",
+            "document_id": "...",
+            "page_number": 1,
+            "chunk_index": 0,
+            "text": "..."
+        }
+    ]
+}
+
+## Frontend
+
+Extend the existing document UI.
+
+For each uploaded document, add:
+
+"Chunk Document"
+
+button.
+
+When clicked:
+
+1. Call the chunking API.
+2. Show loading state.
+3. Display the number of generated chunks.
+4. Display the configuration used.
+5. Display a preview of the chunks.
+
+For each chunk show:
+
+- chunk index
+- page number
+- chunk ID
+- text preview
+
+Do not build a complicated chunk editor.
+
+The purpose is to make the chunking process visible so I can learn what is happening.
+
+## Chunk preview
+
+Add a simple way to inspect the generated chunks.
+
+For example:
+
+Chunk 0
+Page: 1
+Length: 500
+
+[text...]
+
+Chunk 1
+Page: 1
+Length: 500
+
+[text...]
+
+Make it clear where one chunk ends and another begins.
+
+## Error handling
+
+Handle:
+
+- document not found
+- PDF not found
+- PDF parsing failure
+- empty document
+- invalid chunk size
+- invalid overlap
+- overlap >= chunk size
+
+Use appropriate HTTP errors.
+
+## Validation
+
+Validate configuration:
+
+chunk_size must be greater than 0.
+
+chunk_overlap must be greater than or equal to 0.
+
+chunk_overlap must be smaller than chunk_size.
+
+## Testing
+
+Add unit tests for the chunking service.
+
+Test at least:
+
+1. Text shorter than chunk size.
+2. Text exactly equal to chunk size.
+3. Text longer than chunk size.
+4. Overlapping chunks.
+5. Empty text.
+6. Multiple pages.
+7. Invalid chunk configuration.
+8. Ensure page numbers are preserved.
+9. Ensure chunk IDs/indexes are generated correctly.
+
+Keep tests simple and readable.
+
+## Very important
+
+Do NOT add:
+
+- embeddings
+- Sentence Transformers
+- ChromaDB
+- vector database
+- semantic search
+- keyword search
+- hybrid search
+- reranking
+- Grok
+- LLM
+- RAG answer generation
+- citations
+- evaluation
+- Docker
+
+Those are later milestones.
+
+## After implementation
+
+Stop after Step 4.
+
+Show me:
+
+1. Final folder structure.
+2. Files created/modified.
+3. Explain the chunking algorithm in simple terms.
+4. Explain chunk_size.
+5. Explain chunk_overlap.
+6. Explain why overlap is useful.
+7. Explain why we preserve page_number.
+8. Explain the API flow.
+9. Explain the important Python code.
+10. Explain the important React code.
+11. Show an example where one page becomes multiple chunks.
+12. Give manual test cases.
+13. Give the Git commands for this milestone.
+
+Do not start Step 5.
+
+Wait for me to explicitly ask for Step 5.

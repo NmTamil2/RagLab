@@ -7,6 +7,7 @@ and on a server without editing Python files.
 
 from pathlib import Path
 
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # The backend/ folder, found relative to this file:
@@ -32,7 +33,7 @@ class Settings(BaseSettings):
 
     # --- Identity -----------------------------------------------------------
     app_name: str = "RAGLab API"
-    app_version: str = "0.3.0"
+    app_version: str = "0.4.0"
     environment: str = "development"
 
     # --- CORS ---------------------------------------------------------------
@@ -50,6 +51,36 @@ class Settings(BaseSettings):
     # Upload size ceiling. Without one, a single huge request could fill the
     # disk, so the limit is enforced while streaming, not after.
     max_upload_size_mb: int = 20
+
+    # --- Chunking -----------------------------------------------------------
+    # Chunk size and overlap are the two numbers we will spend the rest of the
+    # project tuning, so they live here rather than inside the chunking code.
+    # Changing them means editing .env and restarting — never editing Python.
+    #
+    # Both are measured in characters, not words or tokens. Characters are what
+    # the algorithm actually counts, so the setting means exactly what it says.
+
+    # How many characters of text go into one chunk.
+    chunk_size: int = Field(default=500, gt=0)
+
+    # How many characters each chunk repeats from the end of the previous one.
+    chunk_overlap: int = Field(default=50, ge=0)
+
+    @model_validator(mode="after")
+    def _check_overlap_fits_inside_chunk(self) -> "Settings":
+        """Reject an overlap that is not smaller than the chunk size.
+
+        With overlap >= size the window would never move forward (or would move
+        backwards), so chunking would loop forever. Catching it here means a bad
+        .env stops the server at startup with a clear message, instead of
+        producing a confusing 500 on the first request hours later.
+        """
+        if self.chunk_overlap >= self.chunk_size:
+            raise ValueError(
+                f"CHUNK_OVERLAP ({self.chunk_overlap}) must be smaller than "
+                f"CHUNK_SIZE ({self.chunk_size})."
+            )
+        return self
 
     @property
     def cors_origins_list(self) -> list[str]:

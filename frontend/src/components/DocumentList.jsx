@@ -1,4 +1,5 @@
 import DocumentExtract from "./DocumentExtract";
+import DocumentChunks from "./DocumentChunks";
 import { formatFileSize } from "../utils/formatFileSize";
 import "./DocumentList.css";
 
@@ -43,7 +44,11 @@ function DocumentList({ documents }) {
               <dd className="document-id">{document.document_id}</dd>
             </dl>
 
+            {/* Two independent actions on the same document: extract shows the
+                raw page text, chunk shows what that text becomes. Each keeps
+                its own state, so you can run one without clearing the other. */}
             <DocumentExtract documentId={document.document_id} />
+            <DocumentChunks documentId={document.document_id} />
           </li>
         ))}
       </ul>
